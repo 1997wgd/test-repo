@@ -1,0 +1,41 @@
+name: Release with GPG Signature
+
+on:
+  push:
+    tags:
+      - 'v*'  # 监听以 v 开头的 tag，例如 v1.0.0
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Import GPG private key
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Configure Git GPG
+        run: |
+          git config --global user.name "1997wgd"
+          git config --global user.email "1997wgd@gmail.com"
+          git config --global user.signingkey AF4B13D0CCC54EA4
+          git config --global commit.gpgsign true
+
+      - name: Create signed annotated tag (if not already)
+        run: |
+          TAG=$(git describe --tags)
+          git tag -s $TAG -m "Release $TAG" || echo "Tag exists"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
